@@ -1,15 +1,21 @@
 # 🏥 Patient Management System API (FastAPI)
 
-This document describes a **Patient Management System API** built using **FastAPI** with **JSON file-based storage**. The API supports full **CRUD (Create, Read, Update, Delete)** operations for managing patient records.
+This is a **Patient Management System REST API** built using **FastAPI**.  
+The application performs **CRUD operations** on patient records stored in a **JSON file (`patients.json`)**.
+
+The API also supports:
+- BMI calculation
+- Health verdict generation
+- Sorting patients by height, weight, or BMI
 
 ---
 
-## 📌 Technology Stack
+## 📌 Tech Stack
 
-- **Framework:** FastAPI  
+- **Backend Framework:** FastAPI  
 - **Language:** Python  
-- **Data Storage:** JSON file (no database)  
-- **Data Format:** JSON  
+- **Data Storage:** JSON file  
+- **Validation:** Pydantic  
 - **Server:** Uvicorn  
 
 ---
@@ -17,42 +23,59 @@ This document describes a **Patient Management System API** built using **FastAP
 ## 📂 Project Structure
 
 ```text
-patient_management_system/
-│
-├── main.py              # FastAPI application entry point inlcuding Pydantic Models
-├── patients.json        # JSON file used as data storage
-└── README.md            # API documentation
+.
+├── main.py          # FastAPI application
+├── patients.json    # JSON file storing patient records
+└── README.md        # API documentation
 ```
 
 ---
 
-## 📄 JSON Data Format
+## 📄 JSON Data Structure (`patients.json`)
 
 ```json
-[
-  {
-    "id": 1,
-    "name": "John Doe",
-    "age": 30,
-    "gender": "Male",
-    "weight": 74.2,
-    "height": 5.7,
+{
+  "P001": {
+    "name": "Asad Abbas",
+    "city": "Ahmadpur East",
+    "age": 21,
+    "gender": "male",
+    "height": 5.6,
+    "weight": 47,
+    "bmi": 33.06,
+    "verdict": "Underweight"
   }
-]
+}
 ```
+
+Each patient is stored with a **unique patient ID** as the key.
 
 ---
 
-## 📦 Pydantic Model (Patient)
+## 📦 Pydantic Models
+
+### 🔹 Patient Model
 
 | Field | Type | Description |
 |------|------|------------|
-| id | int | Unique patient ID |
-| name | str | Patient full name |
-| age | int | Patient age |
-| gender | str | Male / Female / Other |
-| disease | str | Diagnosis |
-| admitted | bool | Admission status |
+| id | str | Unique patient ID (e.g., P001) |
+| name | str | Patient name |
+| city | str | City of residence |
+| age | int | Age (1–120) |
+| gender | male / female / others | Gender |
+| height | float | Height in meters |
+| weight | float | Weight in kg |
+| bmi | float | Auto-calculated BMI |
+| verdict | str | Health status based on BMI |
+
+### 🔹 Computed Fields
+
+- **BMI** = weight / height²  
+- **Verdict Logic**
+  - BMI < 18.5 → Underweight  
+  - BMI < 25 → Normal  
+  - BMI < 30 → Normal  
+  - BMI ≥ 30 → Obese  
 
 ---
 
@@ -62,135 +85,150 @@ patient_management_system/
 
 **GET /**
 
-Returns a welcome message.
-
 ```json
 {
-  "message": "Patient Management System API"
+  "message": "Patient Management System"
 }
 ```
 
 ---
 
-### 🔹 Create a New Patient
+### 🔹 About API
 
-**POST /patients**
+**GET /about**
 
-Adds a new patient record.
+```json
+{
+  "message": "A fully functional system to manage the patient records."
+}
+```
+
+---
+
+### 🔹 View All Patients
+
+**GET /view**
+
+Returns all patient records from `patients.json`.
+
+---
+
+### 🔹 View Patient by ID
+
+**GET /patient/{patient_id}**
+
+**Path Parameter**
+- `patient_id` (str) → Patient ID (e.g., P001)
+
+**Response**
+```json
+{
+  "name": "Asad Abbas",
+  "city": "Ahmadpur East",
+  "age": 21,
+  "gender": "male",
+  "height": 5.6,
+  "weight": 47,
+  "bmi": 33.06,
+  "verdict": "Underweight"
+}
+```
+
+**Error**
+- 404 → Patient Not Found
+
+---
+
+### 🔹 Sort Patients
+
+**GET /sort**
+
+**Query Parameters**
+- `sort_by` → height | weight | bmi  
+- `order` → asc | desc (default: asc)
+
+**Example**
+```
+/sort?sort_by=bmi&order=desc
+```
+
+---
+
+### 🔹 Create Patient
+
+**POST /create**
 
 **Request Body**
 ```json
 {
-  "id": 2,
-  "name": "Alice Smith",
+  "id": "P004",
+  "name": "Ali Khan",
+  "city": "Lahore",
   "age": 25,
-  "gender": "Female",
-  "disease": "Malaria",
-  "admitted": true
+  "gender": "male",
+  "height": 5.8,
+  "weight": 70
 }
 ```
 
 **Response**
 ```json
 {
-  "message": "Patient added successfully"
+  "message": "Patient Created Successfully"
 }
 ```
 
----
-
-### 🔹 Get All Patients
-
-**GET /patients**
-
-Returns a list of all patients.
-
-```json
-[
-  {
-    "id": 1,
-    "name": "John Doe",
-    "age": 30,
-    "gender": "Male",
-    "disease": "Flu",
-    "admitted": true
-  }
-]
-```
+**Error**
+- 400 → Patient already exists
 
 ---
 
-### 🔹 Get Patient by ID
+### 🔹 Update Patient
 
-**GET /patients/{patient_id}**
+**PUT /edit/{patient_id}**
 
-Retrieves a single patient record by ID.
+Allows **partial update** of patient data.
 
+**Request Body**
 ```json
 {
-  "id": 1,
-  "name": "John Doe",
-  "age": 30,
-  "gender": "Male",
-  "disease": "Flu",
-  "admitted": true
-}
-```
-
-**Error Response**
-```json
-{
-  "detail": "Patient not found"
-}
-```
-
----
-
-### 🔹 Update Patient Details
-
-**PUT /patients/{patient_id}**
-
-Updates an existing patient record.
-
-```json
-{
-  "name": "John Updated",
-  "age": 31,
-  "gender": "Male",
-  "disease": "Cold",
-  "admitted": false
+  "weight": 75,
+  "height": 5.9
 }
 ```
 
 **Response**
 ```json
 {
-  "message": "Patient updated successfully"
+  "message": "Patient Updated Successfully"
 }
 ```
 
 ---
 
-### 🔹 Delete a Patient
+### 🔹 Delete Patient
 
-**DELETE /patients/{patient_id}**
+**DELETE /delete/{patient_id}**
 
-Deletes a patient record by ID.
-
+**Response**
 ```json
 {
   "message": "Patient deleted successfully"
 }
 ```
 
+**Error**
+- 404 → Patient Not Found
+
 ---
 
 ## ⚠️ Error Handling
 
-- **404** – Patient not found  
-- **400** – Invalid request data  
-
-FastAPI automatically validates input using **Pydantic models**.
+| Status Code | Description |
+|------------|------------|
+| 400 | Bad Request |
+| 404 | Patient Not Found |
+| 422 | Validation Error |
 
 ---
 
@@ -201,26 +239,36 @@ pip install fastapi uvicorn
 uvicorn main:app --reload
 ```
 
-API Documentation:
-- Swagger UI: http://127.0.0.1:8000/docs
-- ReDoc: http://127.0.0.1:8000/redoc
+### 📘 API Docs
+- Swagger UI → http://127.0.0.1:8000/docs
+- ReDoc → http://127.0.0.1:8000/redoc
 
 ---
 
-## 🌟 Future Enhancements
+## 🌟 Features Implemented
 
-- Replace JSON with Database (SQLite / PostgreSQL)
-- Add Authentication & Authorization (JWT)
-- Pagination & Filtering
-- Logging & Exception Middleware
+- CRUD operations using JSON
+- Computed BMI & health verdict
+- Sorting with query parameters
+- Input validation with Pydantic
+- FastAPI auto-generated documentation
+
+---
+
+## 🚀 Future Improvements
+
+- Replace JSON with SQLAlchemy + SQLite
+- Add authentication (JWT)
+- Add pagination & filtering
+- Add logging & exception middleware
 
 ---
 
 ## 👨‍💻 Author
 
-**Patient Management System API**  
-Built using **FastAPI** for learning backend development.
+**Asad Abbas**  
+FastAPI Patient Management System  
 
 ---
 
-✅ Ideal project for learning **FastAPI CRUD operations without a database**.
+✅ Ideal project for learning **FastAPI CRUD + validation + computed fields without a database**.
